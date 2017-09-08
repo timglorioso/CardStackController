@@ -133,6 +133,16 @@ public class CardStackController: UIViewController {
         imageView.pinEdgesToSuperviewEdges()
     }
 
+    public override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(false)
+
+        guard !view.subviews.isEmpty else { return }
+
+        if let imageView = view.subviews[0] as? UIImageView {
+            imageView.removeFromSuperview()
+        }
+    }
+
     public override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
 
