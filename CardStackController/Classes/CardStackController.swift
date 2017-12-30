@@ -2,6 +2,7 @@ import UIKit
 
 @objc public protocol CardStackControllerDelegate: class {
     @objc optional func didFinishStacking(viewController: UIViewController)
+    @objc optional func willUnstack(to viewController: UIViewController)
     @objc optional func didFinishUnstacking(viewController: UIViewController)
     @objc optional func shouldDismiss(viewController: UIViewController) -> Bool
     @objc optional func didFinishDismissingCardController()
@@ -289,7 +290,10 @@ public class CardStackController: UIViewController {
         guard let attachmentBehaviour = attachmentBehaviors.last, let item = attachmentBehaviour.items.last,
             let topController = topViewController else { return }
         attachmentBehaviour.anchorPoint = CGPoint(x: view.center.x, y: item.center.y + item.bounds.height)
-        if let previous = previousViewController { animateCardToFront(viewController: previous) }
+        if let previous = previousViewController {
+            animateCardToFront(viewController: previous)
+            delegate?.willUnstack?(to: previous)
+        }
         removeDimView(to: topController, animated: true) {
             self.dismissCard()
             completion?()
