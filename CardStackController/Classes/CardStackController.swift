@@ -414,8 +414,10 @@ public class CardStackController: UIViewController {
 
         case .ended, .cancelled, .failed:
             currentAttachmentBehaviour.anchorPoint = CGPoint(x: defaultAnchorPointX, y: defaultAnchorPointY)
-            let velocity = CGPoint(x: 0, y: sender.velocity(in: view).y)
-            dynamicItemBehavior.addLinearVelocity(velocity, for: panningView)
+            if bounces {
+                let velocity = CGPoint(x: 0, y: sender.velocity(in: view).y)
+                dynamicItemBehavior.addLinearVelocity(velocity, for: panningView)
+            }
             let shouldDismiss = delegate?.shouldDismiss?(viewController: topController) ?? true
             if sender.translation(in: view).y > Constants.dragLimitToDismiss && shouldDismiss {
                 unstackLastViewController()
