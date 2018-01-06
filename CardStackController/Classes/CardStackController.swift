@@ -85,12 +85,13 @@ public class CardStackController: UIViewController {
         return viewControllers.last
     }
 
+    public var panGestureRecognizer: UIPanGestureRecognizer!
+
     fileprivate var animator: UIDynamicAnimator!
     fileprivate var collisionBehavior: UICollisionBehavior!
     fileprivate var attachmentBehaviors: [UIAttachmentBehavior] = []
     fileprivate var dynamicItemBehavior: UIDynamicItemBehavior!
     fileprivate var panAttachmentBehavior: UIAttachmentBehavior!
-    fileprivate var panGestureRecognizer: UIPanGestureRecognizer!
     fileprivate var isPresentingCard = false
     fileprivate var initialDraggingPoint = CGPoint.zero
     fileprivate var stackCompletionBlock: CompletionBlock?
