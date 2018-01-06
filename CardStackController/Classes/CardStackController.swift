@@ -38,10 +38,12 @@ public class CardStackController: UIViewController {
     /// *Default value*: 10
     public var topOffsetBetweenCards: CGFloat = 10
 
+    public var scalePreviousCardDelay: CFTimeInterval = 0.1
+
     /// Amount of time since `stackCard` is called until the dynamic animator starts animating the stacking card. *Note: this animation is different from the scaling animation of the previous card. The scaling animation occurs with no delay after calling `stackCard`*
     ///
     /// *Default value*: 0.1
-    public var cardDelay: CFTimeInterval = 0.1
+    public var showNextCardDelay: CFTimeInterval = 0.2
 
     /// After calling `stackCard`, the last card on the stack animates its size. This value indicates how much each card scales from it original frame.
     ///
@@ -186,23 +188,25 @@ public class CardStackController: UIViewController {
         panGestureRecognizer.isEnabled = isDraggable
         stackCompletionBlock = completion
         isPresentingCard = true
-        animateCurrentCardBackToPresentNextOne()
 
-        let containerView = createContainerDimView()
-        addChild(viewController: newController, containerView: containerView, fakeViewBackgroundColor: bottomBackgroundColor)
+        delay(delay: scalePreviousCardDelay) {
+            self.animateCurrentCardBackToPresentNextOne()
 
-        let numberOfPreviousCards = viewControllers.count - 1
-        newController.view.frame = newControllerFrame(fromSize: size, previousCards: numberOfPreviousCards)
-        if roundedCorners {
-            newController.view.layer.mask = maskLayer(with: newController.view.bounds)
+            let containerView = self.createContainerDimView()
+            self.addChild(viewController: newController, containerView: containerView, fakeViewBackgroundColor: bottomBackgroundColor)
+
+            let numberOfPreviousCards = self.viewControllers.count - 1
+            newController.view.frame = self.newControllerFrame(fromSize: size, previousCards: numberOfPreviousCards)
+            if roundedCorners {
+                newController.view.layer.mask = self.maskLayer(with: newController.view.bounds)
+            }
+            newController.view.addGestureRecognizer(self.panGestureRecognizer)
+
+            let backgroundColor = bottomBackgroundColor
+            containerView.backgroundColor = backgroundColor ?? CardStackControllerPalette.backgroundColor
         }
-        newController.view.addGestureRecognizer(panGestureRecognizer)
 
-        UIView.animate(withDuration: 0.3) {
-            containerView.backgroundColor = CardStackControllerPalette.backgroundColor
-        }
-
-        delay(delay: cardDelay) {
+        delay(delay: showNextCardDelay) {
             let anchorY = self.view.frame.maxY - newController.view.bounds.midY
             self.attach(view: newController.view, toAnchorPoint: CGPoint(x: self.view.center.x, y: anchorY))
             self.collisionBehavior.addItem(newController.view)
