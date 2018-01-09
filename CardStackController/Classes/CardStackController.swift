@@ -85,7 +85,10 @@ public class CardStackController: UIViewController {
         return viewControllers.last
     }
 
-    public var panGestureRecognizer: UIPanGestureRecognizer!
+    public lazy var panGestureRecognizer: UIPanGestureRecognizer = {
+        let recognizer = UIPanGestureRecognizer(target: self, action: #selector(handlePan(sender:)))
+        return recognizer
+    }()
 
     fileprivate var animator: UIDynamicAnimator!
     fileprivate var collisionBehavior: UICollisionBehavior!
@@ -121,7 +124,7 @@ public class CardStackController: UIViewController {
 
         setupView()
         initialiseAnimator()
-        addGestureRecognizer()
+
         if let viewController = rootViewController {
             stack(viewController: viewController)
         }
@@ -156,10 +159,6 @@ public class CardStackController: UIViewController {
 
     fileprivate func setupView() {
         view.backgroundColor = .clear
-    }
-
-    fileprivate func addGestureRecognizer() {
-        panGestureRecognizer = UIPanGestureRecognizer(target: self, action: #selector(handlePan))
     }
 
     fileprivate func initialiseAnimator() {
