@@ -91,6 +91,7 @@ public class CardStackController: UIViewController {
     fileprivate var isPresentingCard = false
     fileprivate var initialDraggingPoint = CGPoint.zero
     fileprivate var stackCompletionBlock: CompletionBlock?
+    fileprivate var backgroundSnapshotView: UIImageView?
 
     fileprivate var previousViewController: UIViewController? {
         let previousCardIndex = viewControllers.count - 2
@@ -127,20 +128,19 @@ public class CardStackController: UIViewController {
         super.viewWillAppear(false)
 
         guard isBeingPresented else { return }
-        let screenShotImage = drawWindowHierarchy(afterScreenUpdates: false)
-        let imageView = UIImageView(image: screenShotImage)
-        view.insertSubview(imageView, at: 0)
-        imageView.pinEdgesToSuperviewEdges()
+
+        let backgroundSnapshot = drawWindowHierarchy(afterScreenUpdates: false)
+        backgroundSnapshotView = UIImageView(image: backgroundSnapshot)
+
+        view.insertSubview(backgroundSnapshotView!, at: 0)
+        backgroundSnapshotView!.pinEdgesToSuperviewEdges()
     }
 
     public override func viewWillDisappear(_ animated: Bool) {
-        super.viewWillDisappear(false)
+        super.viewWillDisappear(animated)
 
-        guard !view.subviews.isEmpty else { return }
-
-        if let imageView = view.subviews[0] as? UIImageView {
-            imageView.removeFromSuperview()
-        }
+        backgroundSnapshotView?.removeFromSuperview()
+        backgroundSnapshotView = nil
     }
 
     public override func viewDidLayoutSubviews() {
