@@ -13,11 +13,11 @@ public class CardStackController: UIViewController {
     public typealias CompletionBlock = (() -> Void)
 
     fileprivate struct CardStackControllerPalette {
-        static let backgroundColor = UIColor.black.withAlphaComponent(0.4)
+        static let backgroundColor = UIColor.black.withAlphaComponent(0.3)
     }
 
     fileprivate struct Constants {
-        static let topCornerRadius: CGFloat = 14.0
+        static let topCornerRadius: CGFloat = 15.0
         static let dragLimitToDismiss: CGFloat = 100.0
         static let dragAmountToDimBackgroundColor: CGFloat = 1000.0
         static let fakeViewHeight: CGFloat = 500.0
@@ -202,8 +202,20 @@ public class CardStackController: UIViewController {
             }
             newController.view.addGestureRecognizer(self.panGestureRecognizer)
 
-            let backgroundColor = bottomBackgroundColor
-            containerView.backgroundColor = backgroundColor ?? CardStackControllerPalette.backgroundColor
+            let backgroundColor: UIColor
+            let duration: TimeInterval
+
+            if self.viewControllers.count == 1 {
+                backgroundColor = UIColor.black
+                duration = 0.4
+            } else {
+                backgroundColor = UIColor.black.withAlphaComponent(0.3)
+                duration = 0.2
+            }
+
+            UIView.animate(withDuration: duration, animations: {
+                containerView.backgroundColor = backgroundColor
+            })
         }
 
         delay(delay: showNextCardDelay) {
@@ -408,8 +420,16 @@ public class CardStackController: UIViewController {
             let newYPosition = defaultAnchorPointY + calculateYPosition(withLocation: panLocationInView.y, initialDragging: initialDraggingPoint.y)
             currentAttachmentBehaviour.anchorPoint = CGPoint(x: defaultAnchorPointX, y: newYPosition)
             let percentageDragged = (Constants.dragAmountToDimBackgroundColor - (panLocationInView.y - initialDraggingPoint.y)) / Constants.dragAmountToDimBackgroundColor
-            let alphaPercentage = min(0.4, percentageDragged - 0.6)
-            currentDimView.backgroundColor = CardStackControllerPalette.backgroundColor.withAlphaComponent(alphaPercentage)
+
+            let alpha: CGFloat
+
+            if viewControllers.count == 1 {
+                alpha = percentageDragged
+            } else {
+                alpha = min(0.3, percentageDragged - 0.7)
+            }
+
+            currentDimView.backgroundColor = CardStackControllerPalette.backgroundColor.withAlphaComponent(alpha)
 
         case .ended, .cancelled, .failed:
             currentAttachmentBehaviour.anchorPoint = CGPoint(x: defaultAnchorPointX, y: defaultAnchorPointY)
@@ -421,8 +441,16 @@ public class CardStackController: UIViewController {
             if sender.translation(in: view).y > Constants.dragLimitToDismiss && shouldDismiss {
                 unstackLastViewController()
             } else {
+
+                let backgroundColor: UIColor
+
+                if viewControllers.count == 1 {
+                    backgroundColor = UIColor.black
+                } else {
+                    backgroundColor = UIColor.black.withAlphaComponent(0.3)
+                }
                 UIView.animate(withDuration: Constants.dimDuration) {
-                    currentDimView.backgroundColor = CardStackControllerPalette.backgroundColor
+                    currentDimView.backgroundColor = backgroundColor
                 }
             }
         }
