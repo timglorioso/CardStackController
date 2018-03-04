@@ -18,10 +18,12 @@ public class CardStackController: UIViewController {
 
     fileprivate struct Constants {
         static let topCornerRadius: CGFloat = 15.0
-        static let dragLimitToDismiss: CGFloat = 100.0
-        static let dragAmountToDimBackgroundColor: CGFloat = 1000.0
+        static let dragLimitToDismiss: CGFloat = 120.0
+        static let dragLimitToDismissAll: CGFloat = 270.0
+        static let dragAmountToDimBackgroundColor: CGFloat = Constants.dragLimitToDismissAll * 3
         static let fakeViewHeight: CGFloat = 500.0
         static let dimDuration: TimeInterval = 0.4
+        static let dimColor = UIColor.black // UIColor(red: 0.0, green: 0.03, blue: 0.07, alpha: 1.0)
     }
 
     fileprivate(set) var viewControllers: [UIViewController] = []
@@ -97,6 +99,7 @@ public class CardStackController: UIViewController {
     fileprivate var panAttachmentBehavior: UIAttachmentBehavior!
     fileprivate var isPresentingCard = false
     fileprivate var initialDraggingPoint = CGPoint.zero
+    fileprivate var didDragAll = false
     fileprivate var stackCompletionBlock: CompletionBlock?
 
     fileprivate var previousViewController: UIViewController? {
@@ -206,10 +209,10 @@ public class CardStackController: UIViewController {
             let duration: TimeInterval
 
             if self.viewControllers.count == 1 {
-                backgroundColor = UIColor.black
+                backgroundColor = Constants.dimColor
                 duration = 0.4
             } else {
-                backgroundColor = UIColor.black.withAlphaComponent(0.3)
+                backgroundColor = Constants.dimColor.withAlphaComponent(0.3)
                 duration = 0.2
             }
 
@@ -402,57 +405,115 @@ public class CardStackController: UIViewController {
     }
 
     @objc fileprivate func handlePan(sender: UIPanGestureRecognizer) {
-        guard let topController = topViewController,
-            let panningView = topController.view,
-            let currentAttachmentBehaviour = attachmentBehaviors.last,
-            let currentDimView = panningView.superview else { return }
 
-        let panLocationInView = sender.location(in: view)
-        let defaultAnchorPointX = currentAttachmentBehaviour.anchorPoint.x
-        let defaultAnchorPointY = self.view.frame.maxY - panningView.bounds.midY
+        guard let topViewController = topViewController,
+              let topDimView = topViewController.view.superview else { return }
+
+        let touchLocation = sender.location(in: view)
 
         switch sender.state {
-        case .possible: return
+
+        case .possible:
+            return
+
         case .began:
-            initialDraggingPoint = panLocationInView
+            initialDraggingPoint = touchLocation
 
         case .changed:
-            let newYPosition = defaultAnchorPointY + calculateYPosition(withLocation: panLocationInView.y, initialDragging: initialDraggingPoint.y)
-            currentAttachmentBehaviour.anchorPoint = CGPoint(x: defaultAnchorPointX, y: newYPosition)
-            let percentageDragged = (Constants.dragAmountToDimBackgroundColor - (panLocationInView.y - initialDraggingPoint.y)) / Constants.dragAmountToDimBackgroundColor
+
+            let dimView: UIView
+
+            let shouldDragAll = sender.translation(in: view).y > Constants.dragLimitToDismissAll
+            let percentageDragged = (Constants.dragAmountToDimBackgroundColor - (touchLocation.y - initialDraggingPoint.y)) / Constants.dragAmountToDimBackgroundColor
+
+            if viewControllers.count > 1 && shouldDragAll {
+
+                if !didDragAll {
+                    UIView.animate(withDuration: 0.2, animations: {
+                        topDimView.backgroundColor = Constants.dimColor.withAlphaComponent(0.3)
+                    })
+                }
+
+                dimView = viewControllers.first!.view.superview!
+                updateDraggingAllCards(from: touchLocation, didRelease: false)
+                didDragAll = true
+
+            } else {
+
+                if didDragAll {
+
+                    dimView = viewControllers.first!.view.superview!
+                    updateDraggingAllCards(from: touchLocation, didRelease: false)
+
+                } else {
+
+                    dimView = topDimView
+                    updateDraggingTopCard(from: touchLocation)
+                }
+            }
 
             let alpha: CGFloat
 
-            if viewControllers.count == 1 {
-                alpha = percentageDragged
+            if viewControllers.count == 1 || didDragAll {
+                alpha = percentageDragged - 0.1
             } else {
-                alpha = min(0.3, percentageDragged - 0.7)
+                alpha = min(0.3, percentageDragged - 0.6)
             }
 
-            currentDimView.backgroundColor = CardStackControllerPalette.backgroundColor.withAlphaComponent(alpha)
+            dimView.backgroundColor = Constants.dimColor.withAlphaComponent(alpha)
 
         case .ended, .cancelled, .failed:
-            currentAttachmentBehaviour.anchorPoint = CGPoint(x: defaultAnchorPointX, y: defaultAnchorPointY)
+
             if bounces {
                 let velocity = CGPoint(x: 0, y: sender.velocity(in: view).y)
-                dynamicItemBehavior.addLinearVelocity(velocity, for: panningView)
+                dynamicItemBehavior.addLinearVelocity(velocity, for: topViewController.view)
             }
-            let shouldDismiss = delegate?.shouldDismiss?(viewController: topController) ?? true
-            if sender.translation(in: view).y > Constants.dragLimitToDismiss && shouldDismiss {
+
+            let shouldDismiss = delegate?.shouldDismiss?(viewController: topViewController) ?? true
+
+            if sender.translation(in: view).y > Constants.dragLimitToDismissAll && didDragAll {
+                unstackAllViewControllers()
+            } else if sender.translation(in: view).y > Constants.dragLimitToDismiss && !didDragAll && shouldDismiss {
                 unstackLastViewController()
             } else {
-
-                let backgroundColor: UIColor
-
-                if viewControllers.count == 1 {
-                    backgroundColor = UIColor.black
-                } else {
-                    backgroundColor = UIColor.black.withAlphaComponent(0.3)
-                }
-                UIView.animate(withDuration: Constants.dimDuration) {
-                    currentDimView.backgroundColor = backgroundColor
-                }
+                updateDraggingAllCards(from: touchLocation, didRelease: true)
             }
+
+            // reset state
+            initialDraggingPoint = .zero
+            didDragAll = false
+        }
+    }
+
+    fileprivate func updateDraggingTopCard(from point: CGPoint) {
+
+        guard let topViewController = topViewController,
+              let topAttachmentBehavior = attachmentBehaviors.last else { return }
+
+        let defaultAnchorPointY = view.frame.maxY - topViewController.view.bounds.midY
+        let newAnchorPointY = defaultAnchorPointY + calculateYPosition(withLocation: point.y,
+                                                                       initialDragging: initialDraggingPoint.y)
+
+        let anchorPointX = topAttachmentBehavior.anchorPoint.x
+        topAttachmentBehavior.anchorPoint = CGPoint(x: anchorPointX, y: newAnchorPointY)
+    }
+
+    fileprivate func updateDraggingAllCards(from point: CGPoint, didRelease: Bool) {
+
+        let anchorPointsY: [CGFloat]
+        let defaultAnchorPointsY = viewControllers.map({ self.view.frame.maxY - $0.view.bounds.midY })
+
+        if didRelease {
+            anchorPointsY = defaultAnchorPointsY
+        } else {
+            anchorPointsY = defaultAnchorPointsY.map({
+                $0 + self.calculateYPosition(withLocation: point.y, initialDragging: initialDraggingPoint.y)
+            })
+        }
+
+        for index in 0..<attachmentBehaviors.count {
+            let anchorPointX = attachmentBehaviors[index].anchorPoint.x
+            attachmentBehaviors[index].anchorPoint = CGPoint(x: anchorPointX, y: anchorPointsY[index])
         }
     }
 
